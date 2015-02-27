@@ -1,5 +1,20 @@
 #!/usr/bin/python
 
+# GDrive utils
+# Copyright (C) 2015 Darryl Tam
+
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 # pip install PyDrive
 from pydrive.auth import GoogleAuth
@@ -12,6 +27,7 @@ import os
 from mimetypes import guess_type
 
 # sudo pip install --upgrade google-api-python-client
+import apiclient
 from apiclient.discovery import build
 from apiclient.http import MediaFileUpload
 from apiclient.errors import ResumableUploadError
@@ -21,27 +37,20 @@ from oauth2client.file import Storage
 import argparse
 
 
-
-gauth = GoogleAuth()
-gauth.LoadCredentials()
-if gauth.credentials is None:
-	gauth.CommandLineAuth()
-elif gauth.access_token_expired:
-	gauth.Refresh()
-else:
-	gauth.Authorize()
-
-
-
-drive = GoogleDrive(gauth)
-
-parser = argparse.ArgumentParser(description='Upload a file to Google Drive.')
-parser.add_argument('file_path', nargs='+', help='path to file(s) to upload')
-parser.add_argument('-f', '--folder', nargs='*', help='ID of destination folder')
-args = parser.parse_args(sys.argv[1:])
+def getGoogleAuth():
+	gauth = GoogleAuth()
+	gauth.LoadCredentials()
+	if gauth.credentials is None:
+		gauth.CommandLineAuth()
+	elif gauth.access_token_expired:
+		gauth.Refresh()
+	else:
+		gauth.Authorize()
+	return gauth
 
 
-def uploadFile(cur_file_path, drive_service, folder):
+
+def upload_file(cur_file_path, drive_service, folder):
 	try:
 		with open(cur_file_path) as f: pass
 	except IOError as e:
@@ -71,19 +80,29 @@ def uploadFile(cur_file_path, drive_service, folder):
 		#print 'Download Link: %s' % file['webContentLink']
 		print "Upload complete"
 		return file
-	except errors.HttpError, error:
+	except apiclient.errors.HttpError, error:
 		print 'An error occured: %s' % error
 		return None
 
 
-	
+
+gauth_object = getGoogleAuth();
+if gauth_object is None:
+	print 'Error authenticating with Google Drive'
+	sys.exit(1)
+
+parser = argparse.ArgumentParser(description='Upload a file to Google Drive.')
+parser.add_argument('file_path', nargs='+', help='path to file(s) to upload')
+parser.add_argument('-f', '--folder', nargs='*', help='ID of destination folder')
+args = parser.parse_args(sys.argv[1:])
+
 
 for cur_file in args.file_path:
 	if os.path.isdir(cur_file):
 		print "Directory given:",cur_file
 		print "Should provide filename instead"
 		sys.exit(1)
-	uploadFile(cur_file, gauth.service, args.folder)
+	upload_file(cur_file, gauth_object.service, args.folder)
 
 
 
